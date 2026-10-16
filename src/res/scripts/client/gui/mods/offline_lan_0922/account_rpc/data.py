@@ -978,6 +978,7 @@ def personal_missions(selected_vehicle=None):
 
 def sync_data(revision=0, selected_vehicle=None, int_user_settings=None,
               postbattle_progress=None):
+    from gui.mods.offline_lan_0922 import new_year_event
     from gui.mods.offline_lan_0922 import offline_services
     # These are deliberately present even when empty.  #1513's account
     # helpers only create a requester cache entry when the corresponding key
@@ -987,10 +988,15 @@ def sync_data(revision=0, selected_vehicle=None, int_user_settings=None,
     # #1513 identifies full sync by the absence of prevRev. Marking this as
     # incremental replays every elite notification after first sync and
     # keeps stale entries in the inventory and stats caches.
+    tokens = personal_mission_tokens(selected_vehicle)
+    # Box and chest counts travel on the same token cache the client already
+    # reads; its own boxes/chests caches decide which ids it keeps.
+    tokens.update(new_year_event.token_payload(
+        selected_vehicle if isinstance(selected_vehicle, dict) else {}))
     result = {
         'rev': int(revision) + 1,
         'quests': {},
-        'tokens': personal_mission_tokens(selected_vehicle),
+        'tokens': tokens,
         'potapovQuests': personal_missions(selected_vehicle),
         'intUserSettings': dict(int_user_settings or {}),
         'goodies': {},
@@ -1000,7 +1006,11 @@ def sync_data(revision=0, selected_vehicle=None, int_user_settings=None,
             selected_vehicle if isinstance(selected_vehicle, dict) else {}),
         'ranked': {},
         'badges': (),
-        'newYear': {},
+        # Decorations only: no eventsData entry, so the stock event state
+        # stays NOT_STARTED and the stock requester keeps refusing the box
+        # opens this fork settles itself.
+        'newYear': new_year_event.sync_payload(
+            selected_vehicle if isinstance(selected_vehicle, dict) else {}),
         'eventsData': {},
     }
     result.update(inventory(selected_vehicle))

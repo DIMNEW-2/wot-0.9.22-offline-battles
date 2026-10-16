@@ -401,6 +401,48 @@ class AccountRpcTests(unittest.TestCase):
         self.assertEqual(600, update['stats']['vehTypeXP'][50001])
         self.assertEqual(1, self.player.dossier_resyncs)
 
+    def test_postbattle_push_keeps_mission_and_event_tokens_separate(self):
+        """Both token namespaces travel in one post-battle push.
+
+        The offensive publishes its own box and chest tokens through the same
+        diff that republishes the personal-mission tokens, so copying the
+        event section over the whole diff would silently drop one namespace
+        and the client would forget the other one's inventory.
+        """
+        vehicles_module = types.ModuleType('items.vehicles')
+        vehicles_module.VehicleDescr = lambda typeName=None: (
+            types.SimpleNamespace(type=types.SimpleNamespace(id=(0, 1))))
+        vehicles_module.makeIntCompactDescrByID = (
+            lambda unused_type, unused_nation, unused_vehicle: 50001)
+        vehicles_module.getVehicleType = lambda compact_descr: (
+            types.SimpleNamespace(unlocksDescrs=()))
+        items_module = types.ModuleType('items')
+        items_module.vehicles = vehicles_module
+        server = FakeServer(
+            lambda: self.player,
+            lambda delay, fn: self.pending.append((delay, fn)), {
+                'selected_vehicle': {
+                    'vehicleTypeCompactDescrs': [50001],
+                    'wallet': {'credits': 700, 'gold': 5, 'freeXP': 30},
+                    'vehicleXP': {50001: 600},
+                    'personalMissionOrders': 3,
+                    'newYear': {'boxes': {'ny18:box:r': 2},
+                                'chests': {'ny18:chest:2': 1}},
+                },
+                'postbattle_store': types.SimpleNamespace(
+                    progress=lambda: {'battles': 1, 'wins': 1}),
+            })
+        with mock.patch.dict(sys.modules, {
+                'items': items_module, 'items.vehicles': vehicles_module}):
+            self.assertTrue(server.publish_postbattle_progress())
+            self._run()
+
+        update = pickle.loads(self.player.updates[-1])
+        self.assertEqual(3, update['tokens']['free_award_list'][1])
+        self.assertEqual(2, update['tokens']['ny18:box:r'][1])
+        self.assertEqual(1, update['tokens']['ny18:chest:2'][1])
+        self.assertIn('newYear', update)
+
     def test_carousel_first_win_state_hides_one_vehicle_then_resets_all(self):
         selected = _full_garage_snapshot()
         server = FakeServer(

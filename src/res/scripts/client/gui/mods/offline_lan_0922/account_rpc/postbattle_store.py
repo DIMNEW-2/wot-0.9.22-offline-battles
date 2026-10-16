@@ -408,6 +408,11 @@ def _receipt(value):
         'income': copy.deepcopy(value.get('income')),
         'daily_reserves': list(value.get('daily_reserves') or ()),
         'daily_missions': list(value.get('daily_missions') or ()),
+        # What the New Year Offensive granted for this exact battle. Deep
+        # copied because the container rows are mappings, and the receipt is
+        # written down and replayed.
+        'new_year': copy.deepcopy(value.get('new_year')),
+        'new_year_bonus': dict(value.get('new_year_bonus') or {}),
         'personal_missions': copy.deepcopy(value.get('personal_missions') or {}),
         # By the shell's index in the gun's own shot order: only the client
         # can turn that into a shell, and only the client owns its price.
@@ -1220,6 +1225,8 @@ class PostBattleStore(object):
         receipt['income'] = copy.deepcopy(policy.get('income'))
         receipt['daily_reserves'] = list(policy.get('daily_reserves') or ())
         receipt['daily_missions'] = list(policy.get('daily_missions') or ())
+        receipt['new_year'] = copy.deepcopy(policy.get('new_year'))
+        receipt['new_year_bonus'] = dict(policy.get('new_year_bonus') or {})
         receipt['personal_missions'] = copy.deepcopy(
             policy.get('personal_missions') or {})
         awarded = policy.get('awarded')
@@ -1303,6 +1310,7 @@ class PostBattleStore(object):
             'winnerIfDraw': 0, 'guiType': 1,
             'arenaUniqueID': receipt['arena_unique_id'],
             'offlineDailyMissions': list(receipt.get('daily_missions') or ()),
+            'offlineNewYear': copy.deepcopy(receipt.get('new_year')),
             'offlinePersonalMissions': copy.deepcopy(
                 receipt.get('personal_missions') or {}),
         }

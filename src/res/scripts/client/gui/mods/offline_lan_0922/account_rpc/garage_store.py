@@ -25,6 +25,7 @@ import sys
 
 from gui.mods.offline_lan_0922 import config as port_config
 from gui.mods.offline_lan_0922 import friendly_fire
+from gui.mods.offline_lan_0922 import new_year_event
 from gui.mods.offline_lan_0922 import offline_services
 from gui.mods.offline_lan_0922 import personal_campaign
 from gui.mods.offline_lan_0922.account_rpc import data, economy
@@ -258,6 +259,7 @@ def _ledger_payload(snapshot):
         'customizations': _customization_inventory(snapshot.get('customizationItems')),
         'styleStockVersion': max(0, _int_value(snapshot.get('styleStockVersion'))),
         'offlineServices': offline_services.saved_fields(snapshot),
+        'newYear': new_year_event.saved_fields(snapshot),
     }
 
 
@@ -401,6 +403,9 @@ def _apply_ledger(staged, stored):
     services = ledger.get('offlineServices')
     if isinstance(services, dict):
         staged.update(offline_services.saved_fields(services))
+    new_year = ledger.get('newYear')
+    if isinstance(new_year, dict):
+        staged.update(new_year_event.restored_fields(new_year))
     if isinstance(personal_missions, dict):
         staged.update(personal_campaign.restored_fields(personal_missions))
         regular = data.personal_mission_regular_selection(
@@ -907,6 +912,13 @@ class GarageStore(object):
             bonds_percent=experience_percent)
         bonuses = offline_services.reserve_bonuses(
             snapshot, {} if training else (rewards or {}), int(battle_start))
+        # A decorated hangar pays the exact 0.9.22 atmosphere/collection
+        # bonus.  It shares the reserve bonuses row so one income path owns
+        # every additive bonus and both banking and the result screen agree.
+        event_bonus = {} if training else new_year_event.event_bonus_amounts(
+            snapshot, rewards or {})
+        for bonus_key, bonus_amount in event_bonus.items():
+            bonuses[bonus_key] = bonuses.get(bonus_key, 0) + bonus_amount
         if training:
             awarded = dict((key, 0) for key in awarded)
             battle_xp = 0
@@ -943,6 +955,7 @@ class GarageStore(object):
             'weakest_tankman_id': 0,
             'xp_by_tankman': {},
             'income': income,
+            'new_year_bonus': dict(event_bonus),
         }
         if not training and campaign_receipt is not None:
             from gui.mods.offline_lan_0922 import crew_service
@@ -1029,6 +1042,11 @@ class GarageStore(object):
             result['daily_missions'] = [key for key in
                 state.snapshot()['dailyMissions']['claimed']
                 if result['daily_reserves'] and key not in before_claimed]
+            # The offensive settles on the same facts and in the same
+            # transaction, so a receipt replayed after a disconnect can never
+            # grant its fragments or containers twice.
+            result['new_year'] = new_year_event.advance_battle(
+                state.snapshot(), daily_facts, daily_facts.get('finished_at'))
         if (campaign_receipt is not None and not training and
                 not campaign_receipt.get('premature_leave', False)):
             from gui.mods.offline_lan_0922 import personal_campaign_battle
@@ -1081,6 +1099,8 @@ class GarageStore(object):
         marker['income'] = copy.deepcopy(result['income'])
         marker['daily_reserves'] = list(result.get('daily_reserves') or ())
         marker['daily_missions'] = list(result.get('daily_missions') or ())
+        marker['new_year'] = copy.deepcopy(result.get('new_year'))
+        marker['new_year_bonus'] = dict(result.get('new_year_bonus') or {})
         if 'friendly_fire_costs' in result:
             marker['friendly_fire_costs'] = dict(result['friendly_fire_costs'])
         next_receipts = (list(self._battle_receipts) + [marker])[
@@ -1319,6 +1339,12 @@ class GarageStore(object):
                 row['income'] = copy.deepcopy(raw['income'])
             row['daily_reserves'] = list(raw.get('daily_reserves') or ())
             row['daily_missions'] = list(raw.get('daily_missions') or ())
+            if isinstance(raw.get('new_year'), dict):
+                row['new_year'] = copy.deepcopy(raw['new_year'])
+            if isinstance(raw.get('new_year_bonus'), dict):
+                row['new_year_bonus'] = dict(
+                    (str(name), _int_value(amount))
+                    for name, amount in raw['new_year_bonus'].items())
             row['touched_vehicle_types'] = _int_list(raw.get('touched_vehicle_types')) or []
             if isinstance(raw.get('personal_missions'), dict):
                 row['personal_missions'] = copy.deepcopy(raw['personal_missions'])

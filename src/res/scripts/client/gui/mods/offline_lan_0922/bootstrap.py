@@ -1082,6 +1082,12 @@ def _cleanup_runtime():
         errors.append(error)
 
     try:
+        from gui.mods.offline_lan_0922 import new_year_hangar_ui
+        new_year_hangar_ui.uninstall()
+    except Exception as error:
+        errors.append(error)
+
+    try:
         from gui.mods.offline_lan_0922 import offline_services_ui
         offline_services_ui.uninstall()
     except Exception as error:
@@ -1328,6 +1334,10 @@ def _wait_for_login_space():
             _install_lan_session()
             from gui.mods.offline_lan_0922 import offline_services_ui
             offline_services_ui.install()
+            # Installed after the service UI: the event panel reaches the
+            # player through one button on the offline mission page.
+            from gui.mods.offline_lan_0922 import new_year_hangar_ui
+            new_year_hangar_ui.install()
             try:
                 # This must outlive every connect/disconnect: it decides which
                 # preferences profile the player's interface settings use.

@@ -267,6 +267,19 @@ class FakeServer(object):
         from gui.mods.offline_lan_0922 import offline_services
         diff.update(offline_services.service_diff(
             self._context.get('selected_vehicle') or {}))
+        # A battle is what fills the offensive's containers and what the
+        # decorated hangar's bonus was paid from, so the event publishes with
+        # the same post-battle push that republishes the wallet.
+        from gui.mods.offline_lan_0922 import new_year_event
+        event_diff = new_year_event.service_diff(
+            self._context.get('selected_vehicle') or {})
+        # The event carries its own box/chest token table.  Merging it into the
+        # diff whole would drop the personal-mission tokens published above,
+        # so the two token namespaces are combined instead.
+        event_tokens = event_diff.pop('tokens', None)
+        if event_tokens:
+            diff.setdefault('tokens', {}).update(event_tokens)
+        diff.update(event_diff)
         touched = self._context.get('postbattle_touched_vehicles')
         touched = set(touched or ())
         # A battle spends rounds and consumables, and the vehicle's own

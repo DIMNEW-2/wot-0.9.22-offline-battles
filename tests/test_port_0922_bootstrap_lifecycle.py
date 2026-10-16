@@ -64,6 +64,11 @@ def _economy_modules(package_stubs):
                 _real_module('launcher_inbox'))
             _ECONOMY_MODULES['gui.mods.offline_lan_0922.offline_services'] = (
                 _real_module('offline_services'))
+            # data.sync_data publishes the New Year Offensive section, and
+            # garage_store settles it, so both need the real policy module
+            # inside this isolated package.
+            _ECONOMY_MODULES['gui.mods.offline_lan_0922.new_year_event'] = (
+                _real_module('new_year_event'))
             for name in ('ui_i18n', 'personal_campaign_ui'):
                 _ECONOMY_MODULES['gui.mods.offline_lan_0922.' + name] = _real_module(name)
     return dict(_ECONOMY_MODULES)
@@ -338,6 +343,12 @@ class BootstrapLifecycleTests(unittest.TestCase):
             'gui.mods.offline_lan_0922.offline_services_ui')
         services_ui_module.install = lambda: events.append('install_services')
         services_ui_module.uninstall = lambda: None
+        new_year_ui_module = types.ModuleType(
+            'gui.mods.offline_lan_0922.new_year_hangar_ui')
+        new_year_ui_module.install = lambda: events.append(
+            'install_new_year') or None
+        new_year_ui_module.uninstall = lambda: events.append(
+            'uninstall_new_year') or None
         announcement_ui = types.SimpleNamespace(
             install=lambda: events.append('install_announcement_router'),
             uninstall=lambda: events.append('uninstall_announcement_router'))
@@ -625,6 +636,7 @@ class BootstrapLifecycleTests(unittest.TestCase):
                 instance_guard_module),
             'gui.mods.offline_lan_0922.lan_session': lan_session_module,
             'gui.mods.offline_lan_0922.offline_services_ui': services_ui_module,
+            'gui.mods.offline_lan_0922.new_year_hangar_ui': new_year_ui_module,
             'gui.mods.offline_lan_0922.lobby_ui': lobby_ui_module,
             'gui.mods.offline_lan_0922.vehicle_blacklist': VEHICLE_BLACKLIST,
             'gui.mods.offline_lan_0922.vehicle_configuration': (
@@ -711,7 +723,7 @@ class BootstrapLifecycleTests(unittest.TestCase):
                              'personal_campaign_vehicles',
                              'personal_campaign_ui', 'personal_campaign',
                              'personal_campaign_ledger', 'friendly_fire',
-                             'account_rpc/garage_store'):
+                             'new_year_event', 'account_rpc/garage_store'):
                 name = 'gui.mods.offline_lan_0922.' + relative.replace('/', '.')
                 modules[name] = _real_module(relative, name)
         return modules['gui.mods.offline_lan_0922.account_rpc.garage_store']
@@ -1960,14 +1972,18 @@ class BootstrapLifecycleTests(unittest.TestCase):
         self.assertEqual(
             ['clear_entities_and_spaces', 'pin_dossier_cache',
              'install_announcement_router', 'install_battle_router',
-             'install_services', 'pin_account_settings', 'connect'],
+             'install_services', 'install_new_year', 'pin_account_settings',
+             'connect'],
             events)
         self.assertEqual(1, len(compatibility.connect_calls))
         self.assertTrue(compatibility.connect_calls[0][0])
 
         with mock.patch.dict(sys.modules, modules):
             self.assertIsNone(bootstrap._cleanup_runtime())
-        self.assertEqual('uninstall_announcement_router', events[-1])
+        # The event panel is taken down after the stock announcement router
+        # and before the offline service UI, whose stub does not log.
+        self.assertEqual(['uninstall_announcement_router',
+                          'uninstall_new_year'], events[-2:])
 
     def test_the_dossier_cache_is_scoped_before_any_account_exists(self):
         """``PlayerAccount.__init__`` builds the cache itself, so the scope

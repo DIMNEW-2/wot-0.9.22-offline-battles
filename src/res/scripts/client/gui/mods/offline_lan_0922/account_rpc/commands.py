@@ -70,6 +70,12 @@ CMD_ADD_INT_USER_SETTINGS = 1600
 CMD_DEL_INT_USER_SETTINGS = 1601
 # Mod-owned command, carried by the existing Account string-request mailbox.
 CMD_OFFLINE_SERVICE = 19900
+# New Year Offensive.  The stock 0.9.22 event commands are 20161..20169 and
+# are deliberately not claimed: they are validated by NYRequestController,
+# which refuses every request unless the account publishes an event state this
+# fork does not light up.  The offline event travels on its own string
+# command instead and settles through the same transaction as the shop.
+CMD_NEW_YEAR_SERVICE = 19901
 
 # constants.pyc QUEUE_TYPE.RANDOMS, consumed by Account.onEnqueued/onDequeued.
 QUEUE_TYPE_RANDOMS = 1

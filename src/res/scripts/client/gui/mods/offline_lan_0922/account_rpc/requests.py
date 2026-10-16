@@ -864,8 +864,32 @@ def _offline_service(context, args):
         return Result(commands.RES_FAILURE, str(error))
 
 
+def _new_year_service(context, args):
+    """Settle one New Year Offensive action on the shop's own boundary.
+
+    The action returns the reward row it actually granted, so the response
+    names real assets instead of a completion the wallet may have refused.
+    """
+    import json
+    from gui.mods.offline_lan_0922 import new_year_event
+    try:
+        value = json.loads(args[0])
+        action, key = value['action'], value['key']
+    except (IndexError, KeyError, TypeError, ValueError):
+        return Result(commands.RES_FAILURE, 'INVALID_NEW_YEAR_SERVICE')
+    state = _garage(context)
+    try:
+        with state._transaction():
+            return _fitting(context, lambda owner: new_year_event.transact(
+                owner, action, key), extra_diff=new_year_event.service_diff,
+                require_persistence=True)
+    except garage.GarageError as error:
+        return Result(commands.RES_FAILURE, str(error))
+
+
 HANDLERS = {
     commands.CMD_OFFLINE_SERVICE: _offline_service,
+    commands.CMD_NEW_YEAR_SERVICE: _new_year_service,
     commands.CMD_SYNC_DATA: _sync_data,
     commands.CMD_EQUIP: _equip_component,
     commands.CMD_EQUIP_OPTDEV: _equip_optional_device,
