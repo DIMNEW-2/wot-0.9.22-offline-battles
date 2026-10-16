@@ -888,6 +888,15 @@ class LANSession(object):
                     notify_missions(result_data['offlineDailyMissions'])
                 except Exception as error:
                     self._report_postbattle_notification_error(arena_unique_id, error)
+            # The offensive settles in the same receipt as the daily missions,
+            # so its notice follows the same containment: a failure to show it
+            # must not replay the battle result already admitted above.
+            if result_data.get('offlineNewYear'):
+                try:
+                    from gui.mods.offline_lan_0922.new_year_hangar_ui import notify
+                    notify(result_data['offlineNewYear'])
+                except Exception as error:
+                    self._report_postbattle_notification_error(arena_unique_id, error)
         # A mission-message failure may retry without replaying the battle
         # result or daily reward notice already admitted to the native channel.
         if result_data.get('offlinePersonalMissions'):

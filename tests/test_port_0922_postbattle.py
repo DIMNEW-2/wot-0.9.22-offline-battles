@@ -541,7 +541,7 @@ class PostBattleContractTests(unittest.TestCase):
                     'xp', 'credits', 'crystal', 'creditsToDraw',
                     'isWinner', 'team', 'winnerIfDraw', 'guiType',
                     'arenaUniqueID', 'offlineDailyMissions',
-                    'offlinePersonalMissions',
+                    'offlinePersonalMissions', 'offlineNewYear',
                 }, set(service_data))
                 self.assertEqual(receipt['arena_unique_id'],
                                  service_data['arenaUniqueID'])
